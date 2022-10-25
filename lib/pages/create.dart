@@ -12,8 +12,12 @@ class CreateUser extends StatefulWidget {
 }
 
 class _CreateUserState extends State<CreateUser> {
-  final TextEditingController _controllerFullName = new TextEditingController();
+  final TextEditingController _controllerFirstName =
+      new TextEditingController();
+  final TextEditingController _controllerLastName = new TextEditingController();
   final TextEditingController _controllerEmail = new TextEditingController();
+  final TextEditingController _controllerPhone = new TextEditingController();
+  final TextEditingController _controllerAddress = new TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -33,10 +37,20 @@ class _CreateUserState extends State<CreateUser> {
           height: 30,
         ),
         TextField(
-          controller: _controllerFullName,
+          controller: _controllerFirstName,
           cursorColor: primary,
           decoration: InputDecoration(
-            hintText: "FullName",
+            hintText: "First Name",
+          ),
+        ),
+        SizedBox(
+          height: 30,
+        ),
+        TextField(
+          controller: _controllerLastName,
+          cursorColor: primary,
+          decoration: InputDecoration(
+            hintText: "Last Name",
           ),
         ),
         SizedBox(
@@ -47,6 +61,26 @@ class _CreateUserState extends State<CreateUser> {
           cursorColor: primary,
           decoration: InputDecoration(
             hintText: "Email",
+          ),
+        ),
+        SizedBox(
+          height: 30,
+        ),
+        TextField(
+          controller: _controllerPhone,
+          cursorColor: primary,
+          decoration: InputDecoration(
+            hintText: "Phone",
+          ),
+        ),
+        SizedBox(
+          height: 30,
+        ),
+        TextField(
+          controller: _controllerAddress,
+          cursorColor: primary,
+          decoration: InputDecoration(
+            hintText: "Address",
           ),
         ),
         SizedBox(
@@ -66,23 +100,41 @@ class _CreateUserState extends State<CreateUser> {
   }
 
   createNewUser() async {
-    var fullname = _controllerFullName.text;
+    var firstname = _controllerFirstName.text;
+    var lastname = _controllerLastName.text;
     var email = _controllerEmail.text;
-    if (fullname.isNotEmpty && email.isNotEmpty) {
-      var url = BASE_API + "user_store";
-      var bodyData = json.encode({"fullname": fullname, "email": email});
+    var phone = _controllerPhone.text;
+    var address = _controllerAddress.text;
+    List roles = [56, 59];
+    if (firstname.isNotEmpty &&
+        email.isNotEmpty &&
+        lastname.isNotEmpty &&
+        phone.isNotEmpty &&
+        address.isNotEmpty) {
+      var url = BASE_API + "user";
+      var bodyData = jsonEncode({
+        "firstname": firstname.toString(),
+        "lastname": lastname.toString(),
+        "email": email.toString(),
+        "phone": phone.toString(),
+        "address": address.toString(),
+        "roles": roles,
+      });
       var response = await http.post(url,
           headers: {
             "Content-Type": "application/json",
             "Accept": "application/json"
           },
           body: bodyData);
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         var message = json.decode(response.body)['message'];
         showMessage(context, message);
         setState(() {
-          _controllerFullName.text = "";
+          _controllerFirstName.text = "";
+          _controllerLastName.text = "";
           _controllerEmail.text = "";
+          _controllerPhone.text = "";
+          _controllerAddress.text = "";
         });
       } else {
         var messageError = "Can not create new user!!";

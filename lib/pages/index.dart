@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -14,24 +15,39 @@ class IndexPage extends StatefulWidget {
 }
 
 class _IndexPageState extends State<IndexPage> {
+  ScrollController controller;
   List users = [];
   bool isLoading = false;
+  int pageNum = 1;
+  int totalRecord = 0;
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    this.fetchUser();
+    this.fetchUser(pageNum);
+    controller = ScrollController()..addListener(_scrollListener);
   }
 
-  fetchUser() async {
+  @override
+  void dispose() {
+    controller.removeListener(_scrollListener);
+    super.dispose();
+  }
+
+  fetchUser(int pageNum) async {
     setState(() {
       isLoading = true;
     });
-    var url = BASE_API + "user?page=1&limit=50&role=[]&search=";
+    var url = BASE_API +
+        "user?page=" +
+        pageNum.toString() +
+        "&limit=10&role=[]&search=";
     var response = await http.get(url);
     if (response.statusCode == 200) {
       var items = json.decode(response.body)['data'];
       setState(() {
+        totalRecord = json.decode(response.body)['totalCount'];
         users = items;
         isLoading = false;
       });
@@ -57,11 +73,37 @@ class _IndexPageState extends State<IndexPage> {
               child: Icon(
                 Icons.add,
                 color: white,
-              ))
+              )),
         ],
       ),
-      body: getBody(),
+      body: Scrollbar(controller: controller, child: getBody()),
     );
+  }
+
+// Scrollbar(controller: controller, child: getBody()),
+  void _scrollListener() async {
+    if (totalRecord == users.length) {
+      return;
+    }
+    if (controller.position.extentAfter <= 0) {
+      setState(() {
+        pageNum++;
+      });
+      var url = BASE_API +
+          "user?page=" +
+          pageNum.toString() +
+          "&limit=10&role=[]&search=";
+      var response = await http.get(url);
+      if (response.statusCode == 200) {
+        setState(() {
+          totalRecord = json.decode(response.body)['totalCount'];
+        });
+        var items = json.decode(response.body)['data'];
+        setState(() {
+          users.addAll(items);
+        });
+      }
+    }
   }
 
   Widget getBody() {
@@ -71,10 +113,27 @@ class _IndexPageState extends State<IndexPage> {
               valueColor: new AlwaysStoppedAnimation<Color>(primary)));
     }
     return ListView.builder(
+        controller: controller,
         itemCount: users.length,
         itemBuilder: (context, index) {
           return cardItem(users[index]);
         });
+  }
+
+  Widget buildSearch(BuildContext context) {
+    return TextField(
+      decoration: InputDecoration(
+          hintText: 'Search',
+          prefixIcon: Icon(Icons.search),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+          )),
+      onSubmitted: (value) {
+        setState(() {
+          users = [];
+        });
+      },
+    );
   }
 
   Widget cardItem(item) {
@@ -110,27 +169,52 @@ class _IndexPageState extends State<IndexPage> {
   }
 
   editUser(item) {
+    List roles = item['roles'];
     var userId = item['id'].toString();
-    var fullname = (item['firstname'] + item['lastname']).toString();
+    var firstname = item['firstname'].toString();
+    var lastname = item['lastname'].toString();
     var email = item['email'].toString();
+    var phone = item['phone'].toString();
+    var address = item['address'].toString();
     Navigator.push(
         context,
         MaterialPageRoute(
             builder: (context) => EditUser(
-                  userId: userId,
-                  fullName: fullname,
-                  email: email,
-                )));
+                userId: userId,
+                firstname: firstname,
+                lastname: lastname,
+                email: email,
+                phone: phone,
+                address: address,
+                roles: roles)));
   }
 
   deleteUser(userId) async {
-    var url = BASE_API + "user_delete/$userId";
-    var response = await http.post(url, headers: {
+    var url = BASE_API + "user/$userId";
+    var response = await http.delete(url, headers: {
       "Content-Type": "application/json",
       "Accept": "application/json"
     });
     if (response.statusCode == 200) {
-      this.fetchUser();
+      setState(() {
+        users = [];
+      });
+      for (int i = 1; i <= pageNum; i++) {
+        var url = BASE_API +
+            "user?page=" +
+            i.toString() +
+            "&limit=10&role=[]&search=";
+        var response = await http.get(url);
+        if (response.statusCode == 200) {
+          setState(() {
+            totalRecord = json.decode(response.body)['totalCount'];
+          });
+          var items = json.decode(response.body)['data'];
+          setState(() {
+            users.addAll(items);
+          });
+        }
+      }
     }
   }
 
